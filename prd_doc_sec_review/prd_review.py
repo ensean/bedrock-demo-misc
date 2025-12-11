@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DocumentReviewer:
-    def __init__(self, region_name: str = 'us-east-1', prompt_file: str = 'prompt.txt'):
+    def __init__(self, region_name: str = 'ap-northeast-1', prompt_file: str = 'prompt.txt'):
         """
         初始化文档审核器
         
@@ -26,7 +26,7 @@ class DocumentReviewer:
             prompt_file: 系统提示词文件路径
         """
         self.bedrock_client = boto3.client('bedrock-runtime', region_name=region_name)
-        self.model_id = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
+        self.model_id = 'global.anthropic.claude-haiku-4-5-20251001-v1:0'
         self.prompt_file = prompt_file
         self.system_prompt = self._load_system_prompt()
         
@@ -64,9 +64,47 @@ class DocumentReviewer:
             logger.error(f"读取文档文件失败: {e}")
             raise
 
+    def _process_stream_response(self, stream_response) -> str:
+        """
+        处理流式响应
+        
+        Args:
+            stream_response: 流式响应对象
+            
+        Returns:
+            完整的响应文本
+        """
+        full_response = ""
+        
+        try:
+            for event in stream_response['stream']:
+                if 'contentBlockDelta' in event:
+                    delta = event['contentBlockDelta']['delta']
+                    if 'text' in delta:
+                        chunk = delta['text']
+                        full_response += chunk
+                        # 实时显示处理进度
+                        print(chunk, end='', flush=True)
+                elif 'messageStop' in event:
+                    print("\n")  # 换行
+                    logger.info("流式响应完成")
+                    break
+                elif 'metadata' in event:
+                    # 处理元数据
+                    metadata = event['metadata']
+                    if 'usage' in metadata:
+                        usage = metadata['usage']
+                        logger.info(f"Token使用情况: 输入={usage.get('inputTokens', 0)}, 输出={usage.get('outputTokens', 0)}")
+                        
+        except Exception as e:
+            logger.error(f"处理流式响应失败: {e}")
+            raise
+            
+        return full_response
+
     def review_document(self, file_path: str) -> Dict[str, Any]:
         """
-        审核Word文档
+        审核Word文档 (使用流式处理)
         
         Args:
             file_path: Word文档路径
@@ -79,7 +117,7 @@ class DocumentReviewer:
             if not file_path.lower().endswith('.docx'):
                 raise ValueError("仅支持 .docx 格式的文档")
             
-            # 读取文档并转换为base64
+            # 读取文档
             logger.info(f"正在读取文档: {file_path}")
             document_bytes = self._read_document(file_path)
             
@@ -87,9 +125,11 @@ class DocumentReviewer:
             file_size = Path(file_path).stat().st_size
             logger.info(f"文档大小: {file_size} 字节")
             
-            # 调用Bedrock Converse API，直接传递文档
-            logger.info("正在调用Claude Sonnet 4.5进行文档审核...")
-            response = self.bedrock_client.converse(
+            # 调用Bedrock Converse Stream API，直接传递文档
+            logger.info("正在调用Claude Sonnet 4.5进行文档审核 (流式处理)...")
+            print("📝 开始生成审核报告...\n")
+            
+            response = self.bedrock_client.converse_stream(
                 modelId=self.model_id,
                 messages=[
                     {
@@ -124,8 +164,8 @@ class DocumentReviewer:
                 }
             )
             
-            # 提取响应内容
-            review_result = response['output']['message']['content'][0]['text']
+            # 处理流式响应
+            review_result = self._process_stream_response(response)
             
             return {
                 "status": "success",
