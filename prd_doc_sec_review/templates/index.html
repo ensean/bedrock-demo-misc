@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word文档智能审核系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            text-align: center;
+            background: #f9f9f9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-label:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .file-upload-label.dragover {
+            border-color: #4facfe;
+            background: #e6f3ff;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 5px;
+            display: none;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .model-info {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-section {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result-content {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #4facfe;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Word文档智能审核</h1>
+            <p>基于Claude AI的专业文档分析系统</p>
+        </div>
+        
+        <div class="content">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="upload-section">
+                    <div class="form-group">
+                        <label for="file">选择Word文档 (.docx)</label>
+                        <div class="file-upload">
+                            <input type="file" id="file" name="file" accept=".docx" required>
+                            <label for="file" class="file-upload-label" id="fileLabel">
+                                <div>📁 点击选择文件或拖拽文件到此处</div>
+                                <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                                    支持格式: .docx | 最大文件大小: 16MB
+                                </div>
+                            </label>
+                        </div>
+                        <div class="file-info" id="fileInfo"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="model">选择AI模型</label>
+                        <select id="model" name="model" required>
+                            {% for key, model in models.items() %}
+                            <option value="{{ key }}" {% if key == 'claude-4-5-sonnet' %}selected{% endif %}>
+                                {{ model.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="model-info" id="modelInfo">
+                            {{ models['claude-4-5-sonnet'].description }}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="region">AWS区域</label>
+                        <select id="region" name="region">
+                            <option value="us-east-1" selected>美国东部 (us-east-1)</option>
+                            <option value="us-west-2">美国西部 (us-west-2)</option>
+                            <option value="eu-west-1">欧洲西部 (eu-west-1)</option>
+                            <option value="ap-southeast-1">亚太东南 (ap-southeast-1)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        🚀 开始分析
+                    </button>
+                </div>
+            </form>
+
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+
+            <div class="progress-section" id="progressSection">
+                <div class="progress-text" id="progressText">准备中...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div style="text-align: center; margin-top: 10px;">
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <h3>📊 分析结果</h3>
+                <div class="result-content" id="resultContent"></div>
+                <div class="action-buttons">
+                    <a href="#" class="btn btn-primary" id="downloadBtn">📥 下载报告</a>
+                    <button class="btn btn-secondary" onclick="resetForm()">🔄 重新分析</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const models = {{ models | tojson }};
+        let currentTaskId = null;
+        let eventSource = null;
+
+        // 文件上传处理
+        const fileInput = document.getElementById('file');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileInfo = document.getElementById('fileInfo');
+
+        fileInput.addEventListener('change', handleFileSelect);
+        fileLabel.addEventListener('dragover', handleDragOver);
+        fileLabel.addEventListener('dragleave', handleDragLeave);
+        fileLabel.addEventListener('drop', handleDrop);
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                showFileInfo(file);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            fileLabel.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            fileLabel.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            fileLabel.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        }
+
+        function showFileInfo(file) {
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileInfo.innerHTML = `
+                <strong>已选择文件:</strong> ${file.name}<br>
+                <strong>文件大小:</strong> ${sizeInMB} MB<br>
+                <strong>文件类型:</strong> ${file.type || '未知'}
+            `;
+            fileInfo.style.display = 'block';
+        }
+
+        // 模型选择处理
+        document.getElementById('model').addEventListener('change', function() {
+            const selectedModel = this.value;
+            const modelInfo = document.getElementById('modelInfo');
+            modelInfo.textContent = models[selectedModel].description;
+        });
+
+        // 表单提交处理
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // 禁用提交按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '上传中...';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentTaskId = result.task_id;
+                    showSuccess(`文件上传成功！使用模型: ${result.model}`);
+                    startProgressMonitoring();
+                } else {
+                    showError(result.error || '上传失败');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '🚀 开始分析';
+                }
+            } catch (error) {
+                showError('网络错误: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 开始分析';
+            }
+        });
+
+        function startProgressMonitoring() {
+            document.getElementById('progressSection').style.display = 'block';
+            
+            // 使用Server-Sent Events进行实时更新
+            eventSource = new EventSource(`/stream/${currentTaskId}`);
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'content') {
+                    // 实时显示内容
+                    const resultContent = document.getElementById('resultContent');
+                    resultContent.textContent += data.data;
+                    resultContent.scrollTop = resultContent.scrollHeight;
+                    
+                    if (!document.getElementById('resultSection').style.display || 
+                        document.getElementById('resultSection').style.display === 'none') {
+                        document.getElementById('resultSection').style.display = 'block';
+                    }
+                } else if (data.type === 'status') {
+                    updateProgress(data.data);
+                    
+                    if (data.data.status === 'completed') {
+                        eventSource.close();
+                        showCompletion();
+                    } else if (data.data.status === 'error') {
+                        eventSource.close();
+                        showError(data.data.message);
+                    }
+                }
+            };
+            
+            eventSource.onerror = function(event) {
+                console.error('EventSource failed:', event);
+                eventSource.close();
+                // 回退到轮询方式
+                pollProgress();
+            };
+        }
+
+        function pollProgress() {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/status/${currentTaskId}`);
+                    const status = await response.json();
+                    
+                    updateProgress(status);
+                    
+                    if (status.status === 'completed') {
+                        clearInterval(interval);
+                        await loadResult();
+                        showCompletion();
+                    } else if (status.status === 'error') {
+                        clearInterval(interval);
+                        showError(status.message);
+                    }
+                } catch (error) {
+                    console.error('轮询错误:', error);
+                }
+            }, 2000);
+        }
+
+        function updateProgress(status) {
+            const progressText = document.getElementById('progressText');
+            const progressFill = document.getElementById('progressFill');
+            const progressPercent = document.getElementById('progressPercent');
+            
+            progressText.textContent = status.message || '处理中...';
+            progressFill.style.width = (status.progress || 0) + '%';
+            progressPercent.textContent = (status.progress || 0) + '%';
+        }
+
+        async function loadResult() {
+            try {
+                const response = await fetch(`/result/${currentTaskId}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    document.getElementById('resultContent').textContent = result.review_result;
+                    document.getElementById('resultSection').style.display = 'block';
+                    document.getElementById('downloadBtn').href = `/download/${currentTaskId}`;
+                }
+            } catch (error) {
+                console.error('加载结果失败:', error);
+            }
+        }
+
+        function showCompletion() {
+            document.getElementById('progressText').textContent = '✅ 分析完成！';
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').textContent = '🚀 开始分析';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function resetForm() {
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').textContent = '🚀 开始分析';
+            
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            
+            currentTaskId = null;
+        }
+    </script>
+</body>
+</html>
