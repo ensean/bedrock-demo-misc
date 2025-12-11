@@ -46,15 +46,15 @@ class DocumentReviewer:
             # 返回默认提示词
             return "请对提供的文档进行全面审核和分析，包括内容总结、结构分析、质量审核等方面。"
     
-    def _read_document_as_base64(self, file_path: str) -> str:
+    def _read_document(self, file_path: str) -> str:
         """
-        读取文档文件并转换为base64编码
+        读取文档文件
         
         Args:
             file_path: 文档文件路径
             
         Returns:
-            base64编码的文档内容
+            文档内容
         """
         try:
             with open(file_path, 'rb') as f:
@@ -81,7 +81,7 @@ class DocumentReviewer:
             
             # 读取文档并转换为base64
             logger.info(f"正在读取文档: {file_path}")
-            document_base64 = self._read_document_as_base64(file_path)
+            document_bytes = self._read_document(file_path)
             
             # 获取文件大小信息
             file_size = Path(file_path).stat().st_size
@@ -93,6 +93,14 @@ class DocumentReviewer:
                 modelId=self.model_id,
                 messages=[
                     {
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "text": self.system_prompt
+                            }
+                        ]
+                    },
+                    {
                         "role": "user",
                         "content": [
                             {
@@ -100,19 +108,19 @@ class DocumentReviewer:
                                     "format": "docx",
                                     "name": "prd_document",
                                     "source": {
-                                        "bytes": document_base64
+                                        "bytes": document_bytes
                                     }
                                 }
                             },
                             {
-                                "text": self.system_prompt
+                                "text": "分析下这个文档"
                             }
                         ]
                     }
                 ],
                 inferenceConfig={
-                    "maxTokens": 4000,
-                    "temperature": 0.1
+                    "maxTokens": 8000,
+                    "temperature": 0.6
                 }
             )
             
