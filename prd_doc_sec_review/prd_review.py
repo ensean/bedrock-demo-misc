@@ -153,7 +153,7 @@ class DocumentReviewer:
                                 }
                             },
                             {
-                                "text": "分析下这个文档"
+                                "text": "从安全角度分析下这个需求文档"
                             }
                         ]
                     }

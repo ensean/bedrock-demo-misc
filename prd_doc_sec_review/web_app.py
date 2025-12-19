@@ -93,7 +93,7 @@ class StreamingDocumentReviewer(DocumentReviewer):
                                     "source": {"bytes": document_bytes}
                                 }
                             },
-                            {"text": "分析下这个文档"}
+                            {"text": "从安全角度分析下这个需求文档"}
                         ]
                     }
                 ],
@@ -179,7 +179,7 @@ def upload_file():
         
         # 创建审核器
         model_id = SUPPORTED_MODELS[model_key]['id']
-        reviewer = StreamingDocumentReviewer(region_name=region, model_id=model_id)
+        reviewer = StreamingDocumentReviewer(region_name=region, model_id=model_id, prompt_file="prompt2.txt")
         
         # 启动后台任务
         thread = threading.Thread(
