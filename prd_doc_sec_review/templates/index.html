@@ -191,9 +191,130 @@
             padding: 20px;
             max-height: 500px;
             overflow-y: auto;
-            white-space: pre-wrap;
-            font-family: 'Courier New', monospace;
             line-height: 1.6;
+        }
+
+        /* Markdown样式 */
+        .result-content h1,
+        .result-content h2,
+        .result-content h3,
+        .result-content h4,
+        .result-content h5,
+        .result-content h6 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-content h1 {
+            font-size: 2em;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .result-content h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        .result-content h3 {
+            font-size: 1.3em;
+        }
+
+        .result-content p {
+            margin: 10px 0;
+        }
+
+        .result-content ul,
+        .result-content ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+
+        .result-content li {
+            margin: 5px 0;
+        }
+
+        .result-content code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+
+        .result-content pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .result-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+            font-size: 0.9em;
+        }
+
+        .result-content blockquote {
+            border-left: 4px solid #4facfe;
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        .result-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .result-content table th,
+        .result-content table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .result-content table th {
+            background: #4facfe;
+            color: white;
+            font-weight: 600;
+        }
+
+        .result-content table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .result-content a {
+            color: #4facfe;
+            text-decoration: none;
+        }
+
+        .result-content a:hover {
+            text-decoration: underline;
+        }
+
+        .result-content hr {
+            border: none;
+            border-top: 2px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .result-content strong {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-content em {
+            font-style: italic;
         }
 
         .action-buttons {
@@ -339,10 +460,14 @@
         </div>
     </div>
 
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
     <script>
         const models = {{ models | tojson }};
         let currentTaskId = null;
         let eventSource = null;
+        let accumulatedContent = '';
 
         // 文件上传处理
         const fileInput = document.getElementById('file');
@@ -443,9 +568,10 @@
                 const data = JSON.parse(event.data);
                 
                 if (data.type === 'content') {
-                    // 实时显示内容
+                    // 累积内容并渲染Markdown
+                    accumulatedContent += data.data;
                     const resultContent = document.getElementById('resultContent');
-                    resultContent.textContent += data.data;
+                    resultContent.innerHTML = marked.parse(accumulatedContent);
                     resultContent.scrollTop = resultContent.scrollHeight;
                     
                     if (!document.getElementById('resultSection').style.display || 
@@ -511,7 +637,9 @@
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    document.getElementById('resultContent').textContent = result.review_result;
+                    // 使用Markdown渲染结果
+                    const resultContent = document.getElementById('resultContent');
+                    resultContent.innerHTML = marked.parse(result.review_result);
                     document.getElementById('resultSection').style.display = 'block';
                     document.getElementById('downloadBtn').href = `/download/${currentTaskId}`;
                 }
@@ -558,6 +686,7 @@
             }
             
             currentTaskId = null;
+            accumulatedContent = '';
         }
     </script>
 </body>
