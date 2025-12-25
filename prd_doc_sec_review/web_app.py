@@ -30,17 +30,17 @@ os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
 # 支持的模型列表
 SUPPORTED_MODELS = {
     'claude-4-5-opus': {
-        'id': 'us.anthropic.claude-opus-4-5-20251101-v1:0',
+        'id': 'global.anthropic.claude-opus-4-5-20251101-v1:0',
         'name': 'Claude 4.5 Opus',
         'description': '最强大的Claude 4.5 Opus模型，适合最复杂的文档分析任务'
     },
     'claude-4-5-sonnet': {
-        'id': 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+        'id': 'global.anthropic.claude-sonnet-4-5-20250929-v1:0',
         'name': 'Claude 4.5 Sonnet',
         'description': 'Claude 4.5 Sonnet模型，平衡性能、速度和成本的最佳选择'
     },
     'claude-4-5-haiku': {
-        'id': 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+        'id': 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
         'name': 'Claude 4.5 Haiku',
         'description': 'Claude 4.5 Haiku模型，快速响应，适合简单文档分析'
     }
