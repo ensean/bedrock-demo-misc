@@ -205,3 +205,4 @@ logs/
 *.bak
 *.backup
 *~
+*.pkl
