@@ -1,0 +1,204 @@
+from flask import Flask, render_template, request, jsonify
+from strands import Agent
+from strands.agent.conversation_manager import (
+    NullConversationManager,
+    SlidingWindowConversationManager,
+    SummarizingConversationManager
+)
+
+from strands.models import BedrockModel
+
+import os
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Store results for comparison
+results_store = []
+
+
+
+def create_agent(manager_type, use_cache=True):
+    """Create an agent with specified conversation manager and cache settings."""
+    
+    # Create conversation manager based on type
+    if manager_type == "null":
+        manager = BufferedConversationManager()
+    elif manager_type == "sliding":
+        manager = SlidingWindowConversationManager(window_size=5)
+    elif manager_type == "summarizing":
+        manager = SummarizingConversationManager(
+            summary_ratio=0.3
+        )
+    else:
+        raise ValueError(f"Unknown manager type: {manager_type}")
+    
+    bedrock_model = BedrockModel(
+        model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        temperature=0.3,
+        )
+    # Create agent with Bedrock configuration
+    agent = Agent(
+        name=f"TokenOptimizer-{manager_type}",
+        model=bedrock_model,
+        conversation_manager=manager
+    )
+    
+    return agent
+
+def get_token_stats(agent):
+    """Extract token usage statistics from agent."""
+    stats = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 0,
+        "total_tokens": 0
+    }
+    
+    # Get usage from conversation manager
+    if hasattr(agent.conversation_manager, 'usage'):
+        usage = agent.conversation_manager.usage
+        stats["input_tokens"] = usage.get("input_tokens", 0)
+        stats["output_tokens"] = usage.get("output_tokens", 0)
+        stats["cache_creation_tokens"] = usage.get("cache_creation_input_tokens", 0)
+        stats["cache_read_tokens"] = usage.get("cache_read_input_tokens", 0)
+        stats["total_tokens"] = (
+            stats["input_tokens"] + 
+            stats["output_tokens"] + 
+            stats["cache_creation_tokens"]
+        )
+    
+    return stats
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/test', methods=['POST'])
+def test_configuration():
+    """Test a specific configuration and return token usage."""
+    data = request.json
+    manager_type = data.get('manager_type', 'buffered')
+    use_cache = data.get('use_cache', True)
+    messages = data.get('messages', [])
+    
+    if not messages:
+        return jsonify({"error": "No messages provided"}), 400
+    
+    try:
+        # Create agent
+        agent = create_agent(manager_type, use_cache)
+        
+        # Process messages
+        responses = []
+        for msg in messages:
+            response = agent.run(msg)
+            responses.append(response)
+        
+        # Get token statistics
+        stats = get_token_stats(agent)
+        
+        # Calculate estimated cost (Claude 3.5 Sonnet pricing)
+        input_cost = stats["input_tokens"] * 0.003 / 1000
+        output_cost = stats["output_tokens"] * 0.015 / 1000
+        cache_write_cost = stats["cache_creation_tokens"] * 0.00375 / 1000
+        cache_read_cost = stats["cache_read_tokens"] * 0.0003 / 1000
+        total_cost = input_cost + output_cost + cache_write_cost + cache_read_cost
+        
+        result = {
+            "manager_type": manager_type,
+            "use_cache": use_cache,
+            "timestamp": datetime.now().isoformat(),
+            "stats": stats,
+            "cost": {
+                "input": round(input_cost, 6),
+                "output": round(output_cost, 6),
+                "cache_write": round(cache_write_cost, 6),
+                "cache_read": round(cache_read_cost, 6),
+                "total": round(total_cost, 6)
+            },
+            "responses": responses,
+            "message_count": len(messages)
+        }
+        
+        # Store result
+        results_store.append(result)
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/compare', methods=['POST'])
+def compare_configurations():
+    """Compare multiple configurations side by side."""
+    data = request.json
+    messages = data.get('messages', [])
+    
+    if not messages:
+        return jsonify({"error": "No messages provided"}), 400
+    
+    configurations = [
+        {"manager_type": "buffered", "use_cache": False},
+        {"manager_type": "buffered", "use_cache": True},
+        {"manager_type": "sliding", "use_cache": False},
+        {"manager_type": "sliding", "use_cache": True},
+        {"manager_type": "summarizing", "use_cache": False},
+        {"manager_type": "summarizing", "use_cache": True},
+    ]
+    
+    results = []
+    
+    for config in configurations:
+        try:
+            agent = create_agent(config["manager_type"], config["use_cache"])
+            
+            # Process messages
+            for msg in messages:
+                agent.run(msg)
+            
+            # Get statistics
+            stats = get_token_stats(agent)
+            
+            # Calculate cost
+            input_cost = stats["input_tokens"] * 0.003 / 1000
+            output_cost = stats["output_tokens"] * 0.015 / 1000
+            cache_write_cost = stats["cache_creation_tokens"] * 0.00375 / 1000
+            cache_read_cost = stats["cache_read_tokens"] * 0.0003 / 1000
+            total_cost = input_cost + output_cost + cache_write_cost + cache_read_cost
+            
+            results.append({
+                "manager_type": config["manager_type"],
+                "use_cache": config["use_cache"],
+                "stats": stats,
+                "cost": {
+                    "total": round(total_cost, 6)
+                }
+            })
+        
+        except Exception as e:
+            results.append({
+                "manager_type": config["manager_type"],
+                "use_cache": config["use_cache"],
+                "error": str(e)
+            })
+    
+    return jsonify({"results": results})
+
+@app.route('/history')
+def get_history():
+    """Get test history."""
+    return jsonify({"history": results_store})
+
+if __name__ == '__main__':
+    # Check for AWS credentials
+    if not os.getenv('AWS_ACCESS_KEY_ID') and not os.getenv('AWS_PROFILE'):
+        print("Warning: AWS credentials not configured")
+        print("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY or configure AWS_PROFILE")
+    
+    if not os.getenv('AWS_REGION'):
+        print("Warning: AWS_REGION not set, defaulting to us-east-1")
+        os.environ['AWS_REGION'] = 'us-east-1'
+    
+    app.run(debug=True, port=5000)

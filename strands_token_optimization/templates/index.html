@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strands Token Cost Optimization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .config-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        select, textarea, input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        select:focus, textarea:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .results {
+            margin-top: 30px;
+        }
+        
+        .result-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .result-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .cost-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .message-list {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .message-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Strands Token Cost Optimization</h1>
+            <p class="subtitle">Compare ConversationManagers and Prompt Caching Strategies</p>
+        </header>
+        
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">Configuration</h2>
+                <div class="config-panel">
+                    <div class="form-group">
+                        <label for="manager-type">Conversation Manager Type:</label>
+                        <select id="manager-type">
+                            <option value="buffered">Buffered (Full History)</option>
+                            <option value="sliding">Sliding Window (Recent Messages)</option>
+                            <option value="summarizing">Summarizing (Compressed History)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="use-cache" checked>
+                            <label for="use-cache" style="margin-bottom: 0;">Enable Prompt Caching</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message-input">Add Message:</label>
+                        <input type="text" id="message-input" placeholder="Enter a message to test...">
+                        <button onclick="addMessage()" style="margin-top: 10px;" class="btn-secondary">Add Message</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Messages to Test:</label>
+                        <div id="message-list" class="message-list">
+                            <p style="color: #666; text-align: center;">No messages added yet</p>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="runTest()" class="btn-primary">Run Single Test</button>
+                        <button onclick="runComparison()" class="btn-primary">Compare All Configurations</button>
+                        <button onclick="clearResults()" class="btn-secondary">Clear Results</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">Results</h2>
+                <div id="results"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let messages = [];
+        
+        function addMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                messages.push(message);
+                updateMessageList();
+                input.value = '';
+            }
+        }
+        
+        function removeMessage(index) {
+            messages.splice(index, 1);
+            updateMessageList();
+        }
+        
+        function updateMessageList() {
+            const listDiv = document.getElementById('message-list');
+            
+            if (messages.length === 0) {
+                listDiv.innerHTML = '<p style="color: #666; text-align: center;">No messages added yet</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = messages.map((msg, idx) => `
+                <div class="message-item">
+                    <span>${idx + 1}. ${msg}</span>
+                    <button class="remove-btn" onclick="removeMessage(${idx})">Remove</button>
+                </div>
+            `).join('');
+        }
+        
+        async function runTest() {
+            if (messages.length === 0) {
+                alert('Please add at least one message to test');
+                return;
+            }
+            
+            const managerType = document.getElementById('manager-type').value;
+            const useCache = document.getElementById('use-cache').checked;
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running test...</p></div>';
+            
+            try {
+                const response = await fetch('/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        manager_type: managerType,
+                        use_cache: useCache,
+                        messages: messages
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+                
+                displaySingleResult(data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function runComparison() {
+            if (messages.length === 0) {
+                alert('Please add at least one message to test');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running comparison across all configurations...</p></div>';
+            
+            try {
+                const response = await fetch('/compare', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: messages })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+                
+                displayComparisonResults(data.results);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displaySingleResult(result) {
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.innerHTML = `
+                <div class="result-card">
+                    <div class="result-header">
+                        <div class="result-title">
+                            ${result.manager_type.toUpperCase()} Manager 
+                            ${result.use_cache ? '(Cache Enabled)' : '(Cache Disabled)'}
+                        </div>
+                        <div class="cost-badge">$${result.cost.total.toFixed(6)}</div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Input Tokens</div>
+                            <div class="stat-value">${result.stats.input_tokens.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Output Tokens</div>
+                            <div class="stat-value">${result.stats.output_tokens.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Cache Write</div>
+                            <div class="stat-value">${result.stats.cache_creation_tokens.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Cache Read</div>
+                            <div class="stat-value">${result.stats.cache_read_tokens.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total Tokens</div>
+                            <div class="stat-value">${result.stats.total_tokens.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Messages</div>
+                            <div class="stat-value">${result.message_count}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayComparisonResults(results) {
+            const resultsDiv = document.getElementById('results');
+            
+            const tableRows = results.map(r => {
+                if (r.error) {
+                    return `
+                        <tr>
+                            <td>${r.manager_type}</td>
+                            <td>${r.use_cache ? 'Yes' : 'No'}</td>
+                            <td colspan="6" style="color: #dc3545;">Error: ${r.error}</td>
+                        </tr>
+                    `;
+                }
+                
+                return `
+                    <tr>
+                        <td><strong>${r.manager_type.toUpperCase()}</strong></td>
+                        <td>${r.use_cache ? '✅ Yes' : '❌ No'}</td>
+                        <td>${r.stats.input_tokens.toLocaleString()}</td>
+                        <td>${r.stats.output_tokens.toLocaleString()}</td>
+                        <td>${r.stats.cache_creation_tokens.toLocaleString()}</td>
+                        <td>${r.stats.cache_read_tokens.toLocaleString()}</td>
+                        <td>${r.stats.total_tokens.toLocaleString()}</td>
+                        <td><strong>$${r.cost.total.toFixed(6)}</strong></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            resultsDiv.innerHTML = `
+                <div class="result-card">
+                    <h3 style="margin-bottom: 20px;">Configuration Comparison</h3>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Manager Type</th>
+                                <th>Cache</th>
+                                <th>Input Tokens</th>
+                                <th>Output Tokens</th>
+                                <th>Cache Write</th>
+                                <th>Cache Read</th>
+                                <th>Total Tokens</th>
+                                <th>Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // Add sample messages on load
+        window.onload = function() {
+            messages = [
+                "What is the capital of France?",
+                "Tell me about the Eiffel Tower.",
+                "What are some famous French dishes?"
+            ];
+            updateMessageList();
+        };
+    </script>
+</body>
+</html>
