@@ -23,12 +23,13 @@ def create_agent(manager_type, use_cache=True):
     
     # Create conversation manager based on type
     if manager_type == "null":
-        manager = BufferedConversationManager()
+        manager = NullConversationManager()
     elif manager_type == "sliding":
-        manager = SlidingWindowConversationManager(window_size=5)
+        manager = SlidingWindowConversationManager(window_size=2)
     elif manager_type == "summarizing":
         manager = SummarizingConversationManager(
-            summary_ratio=0.3
+            summary_ratio=0.3,
+            preserve_recent_messages = 2
         )
     else:
         raise ValueError(f"Unknown manager type: {manager_type}")
@@ -46,8 +47,8 @@ def create_agent(manager_type, use_cache=True):
     
     return agent
 
-def get_token_stats(agent):
-    """Extract token usage statistics from agent."""
+def get_token_stats_from_trace(trace):
+    """Extract token usage statistics from trace result."""
     stats = {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -56,18 +57,21 @@ def get_token_stats(agent):
         "total_tokens": 0
     }
     
-    # Get usage from conversation manager
-    if hasattr(agent.conversation_manager, 'usage'):
-        usage = agent.conversation_manager.usage
-        stats["input_tokens"] = usage.get("input_tokens", 0)
-        stats["output_tokens"] = usage.get("output_tokens", 0)
-        stats["cache_creation_tokens"] = usage.get("cache_creation_input_tokens", 0)
-        stats["cache_read_tokens"] = usage.get("cache_read_input_tokens", 0)
-        stats["total_tokens"] = (
-            stats["input_tokens"] + 
-            stats["output_tokens"] + 
-            stats["cache_creation_tokens"]
-        )
+    # Get metrics from trace
+    if hasattr(trace, 'metrics'):
+        metrics_summary = trace.metrics.get_summary()
+        accumulated_usage = metrics_summary.get("accumulated_usage", {})
+        
+        stats["input_tokens"] = accumulated_usage.get("inputTokens", 0)
+        stats["output_tokens"] = accumulated_usage.get("outputTokens", 0)
+        stats["total_tokens"] = accumulated_usage.get("totalTokens", 0)
+        
+        # Check for cache tokens in the usage details
+        # Bedrock may report cache tokens differently
+        if "cacheCreationInputTokens" in accumulated_usage:
+            stats["cache_creation_tokens"] = accumulated_usage.get("cacheCreationInputTokens", 0)
+        if "cacheReadInputTokens" in accumulated_usage:
+            stats["cache_read_tokens"] = accumulated_usage.get("cacheReadInputTokens", 0)
     
     return stats
 
@@ -90,14 +94,33 @@ def test_configuration():
         # Create agent
         agent = create_agent(manager_type, use_cache)
         
-        # Process messages
+        # Process messages and accumulate stats
         responses = []
-        for msg in messages:
-            response = agent.run(msg)
-            responses.append(response)
+        accumulated_stats = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_creation_tokens": 0,
+            "cache_read_tokens": 0,
+            "total_tokens": 0
+        }
         
-        # Get token statistics
-        stats = get_token_stats(agent)
+        for msg in messages:
+            trace = agent(msg)
+            
+            # Extract text from trace object
+            if hasattr(trace, 'text'):
+                responses.append(trace.text)
+            elif hasattr(trace, 'output_text'):
+                responses.append(trace.output_text)
+            else:
+                responses.append(str(trace))
+            
+            # Accumulate token statistics from this trace
+            trace_stats = get_token_stats_from_trace(trace)
+            for key in accumulated_stats:
+                accumulated_stats[key] += trace_stats[key]
+        
+        stats = accumulated_stats
         
         # Calculate estimated cost (Claude 3.5 Sonnet pricing)
         input_cost = stats["input_tokens"] * 0.003 / 1000
@@ -154,12 +177,22 @@ def compare_configurations():
         try:
             agent = create_agent(config["manager_type"], config["use_cache"])
             
-            # Process messages
-            for msg in messages:
-                agent.run(msg)
+            # Process messages and accumulate stats
+            accumulated_stats = {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 0,
+                "total_tokens": 0
+            }
             
-            # Get statistics
-            stats = get_token_stats(agent)
+            for msg in messages:
+                trace = agent(msg)
+                trace_stats = get_token_stats_from_trace(trace)
+                for key in accumulated_stats:
+                    accumulated_stats[key] += trace_stats[key]
+            
+            stats = accumulated_stats
             
             # Calculate cost
             input_cost = stats["input_tokens"] * 0.003 / 1000
