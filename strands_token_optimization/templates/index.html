@@ -282,6 +282,61 @@
             cursor: pointer;
             font-size: 12px;
         }
+        
+        .conversation-section {
+            margin-top: 20px;
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .conversation-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .conversation-thread {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .message-bubble {
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .message-user {
+            background: #667eea;
+            color: white;
+            margin-left: 20%;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message-assistant {
+            background: #f1f3f5;
+            color: #333;
+            margin-right: 20%;
+            border-bottom-left-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .message-label {
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+        
+        .message-text {
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -442,6 +497,35 @@
         function displaySingleResult(result) {
             const resultsDiv = document.getElementById('results');
             
+            // Build conversation HTML
+            let conversationHTML = '';
+            if (result.conversation && result.conversation.length > 0) {
+                conversationHTML = `
+                    <div class="conversation-section">
+                        <div class="conversation-title">💬 Conversation</div>
+                        <div class="conversation-thread">
+                            ${result.conversation.map(msg => {
+                                if (msg.role === 'user') {
+                                    return `
+                                        <div class="message-bubble message-user">
+                                            <div class="message-label">👤 User</div>
+                                            <div class="message-text">${escapeHtml(msg.content)}</div>
+                                        </div>
+                                    `;
+                                } else {
+                                    return `
+                                        <div class="message-bubble message-assistant">
+                                            <div class="message-label">🤖 Assistant</div>
+                                            <div class="message-text">${escapeHtml(msg.content)}</div>
+                                        </div>
+                                    `;
+                                }
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
             resultsDiv.innerHTML = `
                 <div class="result-card">
                     <div class="result-header">
@@ -478,8 +562,16 @@
                             <div class="stat-value">${result.message_count}</div>
                         </div>
                     </div>
+                    
+                    ${conversationHTML}
                 </div>
             `;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function displayComparisonResults(results) {
@@ -497,7 +589,7 @@
                 }
                 
                 return `
-                    <tr>
+                    <tr onclick="showConversation(${results.indexOf(r)})" style="cursor: pointer;" title="Click to view conversation">
                         <td><strong>${r.manager_type.toUpperCase()}</strong></td>
                         <td>${r.use_cache ? '✅ Yes' : '❌ No'}</td>
                         <td>${r.stats.input_tokens.toLocaleString()}</td>
@@ -510,9 +602,13 @@
                 `;
             }).join('');
             
+            // Store results for conversation viewing
+            window.comparisonResults = results;
+            
             resultsDiv.innerHTML = `
                 <div class="result-card">
                     <h3 style="margin-bottom: 20px;">Configuration Comparison</h3>
+                    <p style="color: #666; margin-bottom: 15px;">💡 Click on any row to view the conversation</p>
                     <table class="comparison-table">
                         <thead>
                             <tr>
@@ -531,7 +627,59 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="conversation-detail"></div>
             `;
+        }
+        
+        function showConversation(index) {
+            const result = window.comparisonResults[index];
+            const detailDiv = document.getElementById('conversation-detail');
+            
+            if (!result.conversation || result.conversation.length === 0) {
+                detailDiv.innerHTML = `
+                    <div class="result-card" style="margin-top: 20px;">
+                        <p style="color: #666; text-align: center;">No conversation data available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const conversationHTML = `
+                <div class="result-card" style="margin-top: 20px;">
+                    <div class="result-header">
+                        <div class="result-title">
+                            ${result.manager_type.toUpperCase()} Manager 
+                            ${result.use_cache ? '(Cache Enabled)' : '(Cache Disabled)'}
+                        </div>
+                        <div class="cost-badge">$${result.cost.total.toFixed(6)}</div>
+                    </div>
+                    <div class="conversation-section">
+                        <div class="conversation-title">💬 Conversation</div>
+                        <div class="conversation-thread">
+                            ${result.conversation.map(msg => {
+                                if (msg.role === 'user') {
+                                    return `
+                                        <div class="message-bubble message-user">
+                                            <div class="message-label">👤 User</div>
+                                            <div class="message-text">${escapeHtml(msg.content)}</div>
+                                        </div>
+                                    `;
+                                } else {
+                                    return `
+                                        <div class="message-bubble message-assistant">
+                                            <div class="message-label">🤖 Assistant</div>
+                                            <div class="message-text">${escapeHtml(msg.content)}</div>
+                                        </div>
+                                    `;
+                                }
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            detailDiv.innerHTML = conversationHTML;
+            detailDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         
         function clearResults() {

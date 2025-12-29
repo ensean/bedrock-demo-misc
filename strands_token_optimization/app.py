@@ -96,6 +96,7 @@ def test_configuration():
         
         # Process messages and accumulate stats
         responses = []
+        conversation = []
         accumulated_stats = {
             "input_tokens": 0,
             "output_tokens": 0,
@@ -105,15 +106,30 @@ def test_configuration():
         }
         
         for msg in messages:
+            # Add user message to conversation
+            conversation.append({
+                "role": "user",
+                "content": msg
+            })
+            
             trace = agent(msg)
             
             # Extract text from trace object
+            response_text = ""
             if hasattr(trace, 'text'):
-                responses.append(trace.text)
+                response_text = trace.text
             elif hasattr(trace, 'output_text'):
-                responses.append(trace.output_text)
+                response_text = trace.output_text
             else:
-                responses.append(str(trace))
+                response_text = str(trace)
+            
+            responses.append(response_text)
+            
+            # Add assistant response to conversation
+            conversation.append({
+                "role": "assistant",
+                "content": response_text
+            })
             
             # Accumulate token statistics from this trace
             trace_stats = get_token_stats_from_trace(trace)
@@ -142,6 +158,7 @@ def test_configuration():
                 "total": round(total_cost, 6)
             },
             "responses": responses,
+            "conversation": conversation,
             "message_count": len(messages)
         }
         
@@ -178,6 +195,7 @@ def compare_configurations():
             agent = create_agent(config["manager_type"], config["use_cache"])
             
             # Process messages and accumulate stats
+            conversation = []
             accumulated_stats = {
                 "input_tokens": 0,
                 "output_tokens": 0,
@@ -187,7 +205,29 @@ def compare_configurations():
             }
             
             for msg in messages:
+                # Add user message
+                conversation.append({
+                    "role": "user",
+                    "content": msg
+                })
+                
                 trace = agent(msg)
+                
+                # Extract response text
+                response_text = ""
+                if hasattr(trace, 'text'):
+                    response_text = trace.text
+                elif hasattr(trace, 'output_text'):
+                    response_text = trace.output_text
+                else:
+                    response_text = str(trace)
+                
+                # Add assistant response
+                conversation.append({
+                    "role": "assistant",
+                    "content": response_text
+                })
+                
                 trace_stats = get_token_stats_from_trace(trace)
                 for key in accumulated_stats:
                     accumulated_stats[key] += trace_stats[key]
@@ -207,7 +247,8 @@ def compare_configurations():
                 "stats": stats,
                 "cost": {
                     "total": round(total_cost, 6)
-                }
+                },
+                "conversation": conversation
             })
         
         except Exception as e:
