@@ -5,6 +5,7 @@
 """
 
 import os
+import json
 from strands import Agent
 from strands_tools import calculator, file_read, shell, python_repl
 from strands.models import BedrockModel
@@ -21,6 +22,35 @@ system_prompt = """你是一个数据分析专家，擅长使用 Python 和 pand
 2. 根据分析任务生成 python 代码，如有必要可使用 pandas 库，使用 python_repl 工具执行代码获取结果
 2. 分析执行结果
 3. 提供清晰的数据洞察和建议"""
+
+
+def get_token_stats_from_trace(trace):
+    """Extract token usage statistics from trace result."""
+    stats = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 0,
+        "total_tokens": 0
+    }
+    
+    # Get metrics from trace
+    if hasattr(trace, 'metrics'):
+        metrics_summary = trace.metrics.get_summary()
+        accumulated_usage = metrics_summary.get("accumulated_usage", {})
+        
+        stats["input_tokens"] = accumulated_usage.get("inputTokens", 0)
+        stats["output_tokens"] = accumulated_usage.get("outputTokens", 0)
+        stats["total_tokens"] = accumulated_usage.get("totalTokens", 0)
+        
+        # Check for cache tokens in the usage details
+        if "cacheCreationInputTokens" in accumulated_usage:
+            stats["cache_creation_tokens"] = accumulated_usage.get("cacheCreationInputTokens", 0)
+        if "cacheReadInputTokens" in accumulated_usage:
+            stats["cache_read_tokens"] = accumulated_usage.get("cacheReadInputTokens", 0)
+    
+    return stats
+
 
 
 def analyze_ec2_metrics():
@@ -59,9 +89,10 @@ def analyze_ec2_metrics():
     print("🤖 Strands Agent 开始工作...\n")
     
     # 运行 Agent（自动处理工具调用循环）
-    agent(analysis_request)
+    trace = agent(analysis_request)
     
-
+    stats = get_token_stats_from_trace(trace)
+    print("------------------\n 📊 Token 使用统计:" + json.dumps(stats, indent=4))
 
 if __name__ == "__main__":
     try:
