@@ -16,12 +16,7 @@ bedrock_model = BedrockModel(
     model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     temperature=0.3)
 
-system_prompt = """你是一个数据分析专家，擅长使用 Python 和 pandas 分析数据。
-当需要分析数据时，你会：
-1. 读取部分文件，分析文件数据结构
-2. 根据分析任务生成 python 代码，如有必要可使用 pandas 库，使用 python_repl 工具执行代码获取结果
-2. 分析执行结果
-3. 提供清晰的数据洞察和建议"""
+system_prompt = """作为监控系统专家，分析监控指标并给出建议，输出保持简洁"""
 
 
 def get_token_stats_from_trace(trace):
@@ -52,8 +47,62 @@ def get_token_stats_from_trace(trace):
     return stats
 
 
+def analyze_ec2_metrics_file():
+    """使用 Strands Agent 分析 EC2 性能数据"""
+    
+    print("=" * 70)
+    print("Strands Agent File content 演示")
+    print("分析 EC2 服务器性能数据")
+    print("=" * 70)
+    print()
 
-def analyze_ec2_metrics():
+    # 创建 Strands Agent（自动包含 python_repl tool）
+    agent = Agent(
+        model=bedrock_model,
+        system_prompt=system_prompt,
+        tools=[file_read, calculator]
+    )
+
+    # 构建分析请求
+    csv_file_name = 'data/ec2_metrics.csv'
+
+    with open(csv_file_name, "rb") as fp:
+        csv_bytes = fp.read()
+
+    user_prompt = f"""
+我有一份 EC2 服务器的性能监控数据（CSV 格式），存储在 csv 中：
+请执行以下动作：
+1. 识别存在性能风险的实例（平均使用率 CPU > 90% 或 内存 > 85%）
+2. 给出建议
+"""
+    analysis_request = [
+        {"text": user_prompt},
+        {
+            "document": {
+                "format": "csv",
+                "name": "ec2_metrics",
+                "source": {
+                    "bytes": csv_bytes
+                }
+            }
+        }
+    ]
+    print("👤 用户请求:")
+    print("-" * 70)
+    print("分析 EC2 服务器性能数据...")
+    print()
+    
+    print("🤖 Strands Agent 开始工作...\n")
+    
+    # 运行 Agent（自动处理工具调用循环）
+    trace = agent(analysis_request)
+    
+    stats = get_token_stats_from_trace(trace)
+    print("------------------\n 📊 Token 使用统计:" + json.dumps(stats, indent=4))
+
+
+
+def analyze_ec2_metrics_repl():
     """使用 Strands Agent 分析 EC2 性能数据"""
     
     print("=" * 70)
@@ -73,13 +122,9 @@ def analyze_ec2_metrics():
     csv_file_name = 'data/ec2_metrics.csv'
     analysis_request = f"""
 我有一份 EC2 服务器的性能监控数据（CSV 格式），存储在{csv_file_name}：
-请执行以下分析：
-1. 使用 pandas 加载数据
-2. 显示数据的基本信息（行数、列数、数据类型）
-3. 计算每个实例的平均 CPU、内存、磁盘使用率
-4. 找出资源使用率最高的 TOP 3 实例
-5. 识别存在性能风险的实例（CPU > 90% 或 内存 > 85%）
-6. 生成分析报告和优化建议
+请执行以下动作：
+1. 识别存在性能风险的实例（平均使用率 CPU > 90% 或 内存 > 85%）
+2. 给出建议
 """
     print("👤 用户请求:")
     print("-" * 70)
@@ -92,11 +137,11 @@ def analyze_ec2_metrics():
     trace = agent(analysis_request)
     
     stats = get_token_stats_from_trace(trace)
-    print("------------------\n 📊 Token 使用统计:" + json.dumps(stats, indent=4))
+    print("\n------------------\n 📊 Token 使用统计:" + json.dumps(stats, indent=4))
 
 if __name__ == "__main__":
     try:
-        analyze_ec2_metrics()
+        analyze_ec2_metrics_file()
     except Exception as e:
         print(f"❌ 错误: {e}")
         print("\n请确保：")
