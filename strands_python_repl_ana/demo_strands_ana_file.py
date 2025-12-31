@@ -11,6 +11,9 @@ from strands import Agent
 from strands_tools import calculator, file_read, shell, python_repl
 from strands.models import BedrockModel
 
+from strands.hooks import AfterToolCallEvent
+
+
 from strands.agent.conversation_manager import (
     NullConversationManager,
     SlidingWindowConversationManager,
@@ -25,6 +28,11 @@ sum_manager = SummarizingConversationManager(
 slide_manager = SlidingWindowConversationManager(
     window_size=2
 )
+
+def log_python_repl_code(event: AfterToolCallEvent) -> None:
+    if event.tool_use.get("name","") == "python_repl":
+        print("---------------python_repl code starts---------------------\n", event.tool_use.get("input").get("code", ""))
+        print("\n---------------python_repl code ends---------------------\n")
 
 def event_loop_tracker(**kwargs):
     # Track event loop lifecycle
@@ -145,6 +153,7 @@ def analyze_ec2_metrics_repl():
         tools=[python_repl, file_read, shell, calculator],
         callback_handler=None
     )
+    agent.hooks.add_callback(AfterToolCallEvent, log_python_repl_code)
 
     # 构建分析请求
     csv_file_name = 'data/ec2_metrics.csv'
