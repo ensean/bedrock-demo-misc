@@ -98,7 +98,7 @@ def analyze_ec2_metrics_file():
         csv_bytes = fp.read()
 
     user_prompt = f"""
-我有一份 EC2 服务器的性能监控数据（CSV 格式），请找出平均 CPU 使用率大于 75% 的机器
+我有一份 EC2 服务器的性能监控数据（CSV 格式），请找出平均 CPU 使用率大于 75% 的机器; 2. 平均 CPU 使用率 Top3 的机器
 """
     analysis_request = [
         {"text": user_prompt},
@@ -148,7 +148,7 @@ def analyze_ec2_metrics_repl():
     # 构建分析请求
     csv_file_name = 'data/ec2_metrics.csv'
     analysis_request = f"""
-我有一份 EC2 服务器的性能监控数据（CSV 格式），存储在{csv_file_name}，请找出平均 CPU 使用率大于 75% 的机器
+我有一份 EC2 服务器的性能监控数据（CSV 格式），存储在{csv_file_name}，请找出: 1.平均 CPU 使用率大于 75% 的机器; 2. 平均 CPU 使用率 Top3 的机器
 """
     print("👤 用户请求:")
     print("-" * 70)
@@ -170,8 +170,8 @@ def analyze_ec2_metrics_repl():
 
 if __name__ == "__main__":
     try:
-        # analyze_ec2_metrics_repl()
-        analyze_ec2_metrics_file()
+        analyze_ec2_metrics_repl()
+        # analyze_ec2_metrics_file()
     except Exception as e:
         print(f"❌ 错误: {e}")
         print("\n请确保：")
