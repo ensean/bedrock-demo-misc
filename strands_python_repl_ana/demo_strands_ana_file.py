@@ -6,6 +6,7 @@
 
 import os
 import json
+import argparse
 from strands import Agent
 from strands_tools import calculator, file_read, shell, python_repl
 from strands.models import BedrockModel
@@ -169,9 +170,24 @@ def analyze_ec2_metrics_repl():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description='使用 Strands Agent SDK 分析 EC2 性能数据'
+    )
+    parser.add_argument(
+        '--mode',
+        type=str,
+        choices=['repl', 'file'],
+        default='repl',
+        help='选择分析模式: repl (使用 Python REPL) 或 file (直接传递文件内容)，默认为 repl'
+    )
+
+    args = parser.parse_args()
+
     try:
-        analyze_ec2_metrics_repl()
-        # analyze_ec2_metrics_file()
+        if args.mode == 'repl':
+            analyze_ec2_metrics_repl()
+        else:
+            analyze_ec2_metrics_file()
     except Exception as e:
         print(f"❌ 错误: {e}")
         print("\n请确保：")
