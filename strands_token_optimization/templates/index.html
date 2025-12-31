@@ -337,6 +337,39 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        
+        .token-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.85em;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+        
+        .token-stat {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .token-stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .token-stat-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .cost-highlight {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -353,7 +386,7 @@
                     <div class="form-group">
                         <label for="manager-type">Conversation Manager Type:</label>
                         <select id="manager-type">
-                            <option value="null">Buffered (Full History)</option>
+                            <option value="null">Null (No History)</option>
                             <option value="sliding">Sliding Window (Recent Messages)</option>
                             <option value="summarizing">Summarizing (Compressed History)</option>
                         </select>

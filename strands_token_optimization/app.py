@@ -5,9 +5,7 @@ from strands.agent.conversation_manager import (
     SlidingWindowConversationManager,
     SummarizingConversationManager
 )
-
 from strands.models import BedrockModel
-
 import os
 from datetime import datetime
 
@@ -15,8 +13,6 @@ app = Flask(__name__)
 
 # Store results for comparison
 results_store = []
-
-
 
 def create_agent(manager_type, use_cache=True):
     """Create an agent with specified conversation manager and cache settings."""
@@ -29,7 +25,7 @@ def create_agent(manager_type, use_cache=True):
     elif manager_type == "summarizing":
         manager = SummarizingConversationManager(
             summary_ratio=0.3,
-            preserve_recent_messages = 2
+            preserve_recent_messages=2
         )
     else:
         raise ValueError(f"Unknown manager type: {manager_type}")
@@ -37,7 +33,8 @@ def create_agent(manager_type, use_cache=True):
     bedrock_model = BedrockModel(
         model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         temperature=0.3,
-        )
+    )
+    
     # Create agent with Bedrock configuration
     agent = Agent(
         name=f"TokenOptimizer-{manager_type}",
@@ -67,7 +64,6 @@ def get_token_stats_from_trace(trace):
         stats["total_tokens"] = accumulated_usage.get("totalTokens", 0)
         
         # Check for cache tokens in the usage details
-        # Bedrock may report cache tokens differently
         if "cacheCreationInputTokens" in accumulated_usage:
             stats["cache_creation_tokens"] = accumulated_usage.get("cacheCreationInputTokens", 0)
         if "cacheReadInputTokens" in accumulated_usage:
@@ -83,7 +79,7 @@ def index():
 def test_configuration():
     """Test a specific configuration and return token usage."""
     data = request.json
-    manager_type = data.get('manager_type', 'buffered')
+    manager_type = data.get('manager_type', 'null')
     use_cache = data.get('use_cache', True)
     messages = data.get('messages', [])
     
@@ -125,14 +121,25 @@ def test_configuration():
             
             responses.append(response_text)
             
-            # Add assistant response to conversation
+            # Get token statistics for this specific response
+            trace_stats = get_token_stats_from_trace(trace)
+            
+            # Calculate cost for this response
+            msg_input_cost = trace_stats["input_tokens"] * 0.003 / 1000
+            msg_output_cost = trace_stats["output_tokens"] * 0.015 / 1000
+            msg_cache_write_cost = trace_stats["cache_creation_tokens"] * 0.00375 / 1000
+            msg_cache_read_cost = trace_stats["cache_read_tokens"] * 0.0003 / 1000
+            msg_total_cost = msg_input_cost + msg_output_cost + msg_cache_write_cost + msg_cache_read_cost
+            
+            # Add assistant response with token info
             conversation.append({
                 "role": "assistant",
-                "content": response_text
+                "content": response_text,
+                "tokens": trace_stats,
+                "cost": round(msg_total_cost, 6)
             })
             
-            # Accumulate token statistics from this trace
-            trace_stats = get_token_stats_from_trace(trace)
+            # Accumulate token statistics
             for key in accumulated_stats:
                 accumulated_stats[key] += trace_stats[key]
         
@@ -168,7 +175,8 @@ def test_configuration():
         return jsonify(result)
     
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/compare', methods=['POST'])
 def compare_configurations():
@@ -180,8 +188,8 @@ def compare_configurations():
         return jsonify({"error": "No messages provided"}), 400
     
     configurations = [
-        {"manager_type": "buffered", "use_cache": False},
-        {"manager_type": "buffered", "use_cache": True},
+        {"manager_type": "null", "use_cache": False},
+        {"manager_type": "null", "use_cache": True},
         {"manager_type": "sliding", "use_cache": False},
         {"manager_type": "sliding", "use_cache": True},
         {"manager_type": "summarizing", "use_cache": False},
@@ -222,13 +230,25 @@ def compare_configurations():
                 else:
                     response_text = str(trace)
                 
-                # Add assistant response
+                # Get token statistics for this specific response
+                trace_stats = get_token_stats_from_trace(trace)
+                
+                # Calculate cost for this response
+                msg_input_cost = trace_stats["input_tokens"] * 0.003 / 1000
+                msg_output_cost = trace_stats["output_tokens"] * 0.015 / 1000
+                msg_cache_write_cost = trace_stats["cache_creation_tokens"] * 0.00375 / 1000
+                msg_cache_read_cost = trace_stats["cache_read_tokens"] * 0.0003 / 1000
+                msg_total_cost = msg_input_cost + msg_output_cost + msg_cache_write_cost + msg_cache_read_cost
+                
+                # Add assistant response with token info
                 conversation.append({
                     "role": "assistant",
-                    "content": response_text
+                    "content": response_text,
+                    "tokens": trace_stats,
+                    "cost": round(msg_total_cost, 6)
                 })
                 
-                trace_stats = get_token_stats_from_trace(trace)
+                # Accumulate token statistics
                 for key in accumulated_stats:
                     accumulated_stats[key] += trace_stats[key]
             
@@ -252,10 +272,12 @@ def compare_configurations():
             })
         
         except Exception as e:
+            import traceback
             results.append({
                 "manager_type": config["manager_type"],
                 "use_cache": config["use_cache"],
-                "error": str(e)
+                "error": str(e),
+                "traceback": traceback.format_exc()
             })
     
     return jsonify({"results": results})
