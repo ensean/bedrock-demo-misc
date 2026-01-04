@@ -6,8 +6,12 @@
 
 本项目演示了如何使用 Strands Agent SDK 让 AI 自动分析 EC2 服务器性能监控数据，支持两种分析模式：
 
-- **REPL 模式**：Agent 使用 Python REPL 工具动态生成并执行代码来分析数据
-- **File 模式**：直接将 CSV 文件内容作为文档传递给 Agent 进行分析
+- `demos_strands_ana_file.py`
+  - **REPL 模式**：Agent 使用 Python REPL 工具动态生成并执行代码来分析数据
+  - **File 模式**：直接将 CSV 文件内容作为文档传递给 Agent 进行分析
+
+- `demos_strands_ana_agentcore.py`
+  - **AgentCore CodeInterpreter 模式**: Agent 使用 CodeInterpreter 沙箱环境运行代码分析数据
 
 ## 安装依赖
 
