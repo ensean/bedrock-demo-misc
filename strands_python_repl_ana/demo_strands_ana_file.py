@@ -48,12 +48,27 @@ def event_loop_tracker(**kwargs):
 
 os.environ["BYPASS_TOOL_CONSENT"] = "true"
 
-bedrock_model = BedrockModel(
-    model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    region_name="ap-northeast-1",
-    temperature=0.3)
-
 system_prompt = """作为监控系统专家，仔细分析监控指标"""
+
+def create_bedrock_model(cache_tools: bool = False):
+    """创建 Bedrock 模型实例
+    
+    Args:
+        cache_tools: 是否启用 tools prompt cache
+    """
+    if cache_tools:
+        return BedrockModel(
+            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            region_name="ap-northeast-1",
+            temperature=0.3,
+            cache_tools="default"
+        )
+    else:
+        return BedrockModel(
+            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            region_name="ap-northeast-1",
+            temperature=0.3
+        )
 
 
 def get_token_stats_from_trace(trace):
@@ -84,18 +99,23 @@ def get_token_stats_from_trace(trace):
     return stats
 
 
-def analyze_ec2_metrics_file():
-    """使用 Strands Agent 分析 EC2 性能数据"""
+def analyze_ec2_metrics_file(cache_tools: bool = False):
+    """使用 Strands Agent 分析 EC2 性能数据
+    
+    Args:
+        cache_tools: 是否启用 prompt cache
+    """
     
     print("=" * 70)
     print("Strands Agent File content 演示")
     print("分析 EC2 服务器性能数据")
+    print(f"Prompt Cache: {'✅ 已启用' if cache_tools else '❌ 未启用'}")
     print("=" * 70)
     print()
 
     # 创建 Strands Agent（自动包含 python_repl tool）
     agent = Agent(
-        model=bedrock_model,
+        model=create_bedrock_model(cache_tools),
         system_prompt=system_prompt,
         tools=[file_read, calculator],
         callback_handler=None
@@ -138,18 +158,23 @@ def analyze_ec2_metrics_file():
 
 
 
-def analyze_ec2_metrics_repl():
-    """使用 Strands Agent 分析 EC2 性能数据"""
+def analyze_ec2_metrics_repl(cache_tools: bool = False):
+    """使用 Strands Agent 分析 EC2 性能数据
+    
+    Args:
+        cache_tools: 是否启用 prompt cache
+    """
     
     print("=" * 70)
     print("Strands Agent Python REPL 演示")
     print("分析 EC2 服务器性能数据")
+    print(f"Prompt Cache: {'✅ 已启用' if cache_tools else '❌ 未启用'}")
     print("=" * 70)
     print()
 
     # 创建 Strands Agent（自动包含 python_repl tool）
     agent = Agent(
-        model=bedrock_model,
+        model=create_bedrock_model(cache_tools),
         system_prompt=system_prompt,
         tools=[python_repl, file_read, shell, calculator],
         callback_handler=None
@@ -190,14 +215,19 @@ if __name__ == "__main__":
         default='repl',
         help='选择分析模式: repl (使用 Python REPL) 或 file (直接传递文件内容)，默认为 repl'
     )
+    parser.add_argument(
+        '--cache_tools',
+        action='store_true',
+        help='启用 Bedrock prompt cache 以减少 token 消耗（适用于重复调用场景）'
+    )
 
     args = parser.parse_args()
 
     try:
         if args.mode == 'repl':
-            analyze_ec2_metrics_repl()
+            analyze_ec2_metrics_repl(cache_tools=args.cache_tools)
         else:
-            analyze_ec2_metrics_file()
+            analyze_ec2_metrics_file(cache_tools=args.cache_tools)
     except Exception as e:
         print(f"❌ 错误: {e}")
         print("\n请确保：")
