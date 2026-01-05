@@ -50,6 +50,7 @@ os.environ["BYPASS_TOOL_CONSENT"] = "true"
 
 bedrock_model = BedrockModel(
     model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    region_name="ap-northeast-1",
     temperature=0.3)
 
 system_prompt = """作为监控系统专家，仔细分析监控指标"""
@@ -60,7 +61,7 @@ def get_token_stats_from_trace(trace):
     stats = {
         "input_tokens": 0,
         "output_tokens": 0,
-        "cache_creation_tokens": 0,
+        "cache_write_tokens": 0,
         "cache_read_tokens": 0,
         "total_tokens": 0
     }
@@ -75,8 +76,8 @@ def get_token_stats_from_trace(trace):
         stats["total_tokens"] = accumulated_usage.get("totalTokens", 0)
         
         # Check for cache tokens in the usage details
-        if "cacheCreationInputTokens" in accumulated_usage:
-            stats["cache_creation_tokens"] = accumulated_usage.get("cacheCreationInputTokens", 0)
+        if "cacheWriteInputTokens" in accumulated_usage:
+            stats["cache_write_tokens"] = accumulated_usage.get("cacheWriteInputTokens", 0)
         if "cacheReadInputTokens" in accumulated_usage:
             stats["cache_read_tokens"] = accumulated_usage.get("cacheReadInputTokens", 0)
     
